@@ -20,7 +20,7 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT) || 3000;
 const API = process.env.API_URL;
-const hostname = "0.0.0.0";
+// const hostname = "0.0.0.0";
 
 app.use(bodyParser.json());
 app.use(morgan("tiny"));
@@ -41,6 +41,4 @@ app.use(`${API}/brands`, brandRoutes);
 
 setupSwagger(app);
 
-app.listen(port, hostname, () =>
-  console.log(`TecKW API listening on http://${hostname}:${port}`)
-);
+app.listen(port, () => console.log(`TecKW API up and running ${port}`));

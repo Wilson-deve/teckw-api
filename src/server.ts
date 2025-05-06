@@ -20,12 +20,15 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT) || 3000;
 const API = process.env.API_URL || "/api/v1";
-// const hostname = "0.0.0.0";
 
 app.use(bodyParser.json());
 app.use(morgan("tiny"));
 app.use(cors());
 app.options("*", cors());
+
+app.get("/", (req, res) => {
+  res.send("API is running!");
+});
 
 app.use(`${API}/auth`, authRoutes);
 app.use(`${API}/users`, userRoutes);

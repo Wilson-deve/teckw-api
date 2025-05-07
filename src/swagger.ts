@@ -12,7 +12,12 @@ const options = {
     },
     servers: [
       {
-        url: "http://0.0.0.0:3000/api/v1",
+        url: "http://localhost:3000/api/v1/",
+        description: "Local server",
+      },
+      {
+        url: "https://teckw-api.onrender.com/api/v1/",
+        description: "Production server",
       },
     ],
   },

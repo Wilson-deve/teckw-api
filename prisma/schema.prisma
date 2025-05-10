@@ -265,9 +265,8 @@ enum PaymentStatus {
 }
 
 enum PaymentMethod {
-  CARD
-  MOBILE_MONEY
-  CASH_ON_DELIVERY
+  MOMO
+  COD
  
 }
 

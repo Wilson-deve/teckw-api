@@ -18,7 +18,7 @@ export interface Payment {
   currency: string;
   method: PaymentMethod;
   status: PaymentStatus;
-  reference: string;
+  reference?: string;
   transactionId?: string;
   error?: string;
   createdAt: Date;

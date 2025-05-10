@@ -1,8 +1,8 @@
 import prisma from "../lib/prisma";
 import { generateReference, getErrorMessage } from "../utils/helpers";
-import { PaymentRequest, PaymentMethod, Payment } from "../types/payment";
+import { PaymentRequest, Payment } from "../types/payment";
 import { initiateMoMoPayment, checkMoMoStatus } from "../services/momo";
-import { OrderStatus, PaymentStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus, PaymentMethod } from "@prisma/client";
 
 export async function createPayment(
   data: PaymentRequest,
@@ -96,6 +96,9 @@ export async function processPayment(
           throw new Error("MoMo phone number is required");
         }
 
+        if (!payment.reference) {
+          throw new Error("Payment reference is required");
+        }
         const momoResponse = await initiateMoMoPayment(
           payment.id,
           payment.reference,

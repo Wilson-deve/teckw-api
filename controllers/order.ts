@@ -7,6 +7,7 @@ import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { sendOrderConfirmationEmail } from "../services/emailService";
 import { v4 as uuidv4 } from "uuid";
 import { initiateMoMoPayment } from "../services/momo";
+import { PaymentMethod } from "../types/payment";
 
 export const createOrder: RequestHandler = async (req, res) => {
   try {
@@ -81,7 +82,7 @@ export const createOrder: RequestHandler = async (req, res) => {
           payments: {
             create: [
               {
-                method: paymentMethod,
+                method: paymentMethod as PaymentMethod,
                 amount: total,
                 currency: "RWF",
                 status: PaymentStatus.PENDING,

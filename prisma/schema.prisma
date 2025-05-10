@@ -105,7 +105,7 @@ model Product {
   price       Decimal
   stock       Int @default(0)
   images      ProductImage[]
-   brandId        String
+  brandId        String
   brand        Brand            @relation(fields: [brandId], references: [id])
   specifications Json?
   discount    Float?
@@ -118,6 +118,7 @@ model Product {
   orderItems  OrderItem[]
   variations      ProductVariation[]
   colors          ProductColor[]
+  reservedStock Int @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -216,39 +217,58 @@ model WishlistItem {
 model Order {
   id              String     @id @default(uuid())
   orderNumber     String     @unique
-  status          OrderStatus @default(PENDING)
+  status          OrderStatus @default(PROCESSING)
   total           Decimal
-  paymentMethod   PaymentMethod
-  paymentStatus   PaymentStatus @default(PENDING)
+  payments        Payment[]
   shippingAddressId String
   shippingAddress Address @relation(fields: [shippingAddressId], references: [id])
   userId          String
   user            User       @relation(fields: [userId], references: [id])
   items           OrderItem[]
   trackingNumber  String?
+  vat             Float        @default(0)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }
 
 enum OrderStatus {
-  PENDING
+  PENDING_PAYMENT
+  AWAITING_CONFIRMATION
   PROCESSING
   SHIPPED
   DELIVERED
   CANCELLED
 }
 
-enum PaymentMethod {
-  MOBILE_MONEY
-  CREDIT_CARD
-  CASH_ON_DELIVERY
+model Payment {
+  id            String     @id @default(cuid())
+  order         Order      @relation(fields: [orderId], references: [id])
+  orderId       String
+  amount        Float
+  currency      String     @default("RWF")
+  method        PaymentMethod     
+  status        PaymentStatus     
+  reference     String     @unique
+  transactionId String?
+  paymentUrl     String? 
+  error         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 }
 
 enum PaymentStatus {
   PENDING
-  COMPLETED
+  INITIATED
+  PAID
   FAILED
   REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  MOBILE_MONEY
+  CASH_ON_DELIVERY
+ 
 }
 
 model OrderItem {

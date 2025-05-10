@@ -93,7 +93,7 @@ export const createOrderSchema = z.object({
     )
     .nonempty(),
   shippingAddressId: z.string().uuid(),
-  paymentMethod: z.enum(["CARD", "MOBILE_MONEY", "CASH_ON_DELIVERY"]),
+  paymentMethod: z.enum(["MOMO", "COD"]),
 });
 
 export const createReviewSchema = z.object({
@@ -128,3 +128,12 @@ export const createBrandSchema = z.object({
 });
 
 export const updateBrandSchema = createBrandSchema.partial();
+
+export const paymentSchema = z.object({
+  orderId: z.string().min(1),
+  amount: z.number().positive(),
+  currency: z.literal("RWF"),
+  paymentMethod: z.enum(["MOMO", "CARD", "COD"]),
+  momoPhone: z.string().optional(),
+  cardToken: z.string().optional(),
+});

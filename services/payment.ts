@@ -96,6 +96,7 @@ export async function processPayment(
         if (!momoPhone) {
           throw new Error("MoMo phone number is required");
         }
+
         const momoResponse = await initiateMoMoPayment(
           payment.id,
           payment.reference,
@@ -103,11 +104,13 @@ export async function processPayment(
           momoPhone,
           payment.orderId
         );
+
         await prisma.payment.update({
           where: { id: payment.id },
           data: { transactionId: momoResponse.transactionId },
         });
         return true;
+
       case "COD":
         return await processCODPayment(payment.id);
       default:

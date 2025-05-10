@@ -15,6 +15,7 @@ import { reviewRoutes } from "../routes/review";
 import { categoryRoutes } from "../routes/category";
 import { brandRoutes } from "../routes/brand";
 import { setupSwagger } from "./swagger";
+import { paymentRoutes } from "../routes/payment";
 
 dotenv.config();
 const app = express();
@@ -36,6 +37,7 @@ app.use(`${API}/users`, addressRoutes);
 app.use(`${API}/users`, notificationRoutes);
 app.use(`${API}/products`, productRoutes);
 app.use(`${API}/orders`, orderRoutes);
+app.use(`${API}/payments`, paymentRoutes);
 app.use(`${API}/wishlist`, wishlistRoutes);
 app.use(`${API}/cart`, cartRoutes);
 app.use(`${API}/reviews`, reviewRoutes);

@@ -50,6 +50,7 @@ interface ShippingAddress {
 interface ExtendedOrder extends Order {
   items: OrderItem[];
   shippingAddress: ShippingAddress;
+  paymentMethod: string;
 }
 
 export const sendOrderConfirmationEmail = async (

@@ -3,8 +3,10 @@ import prisma from "../lib/prisma";
 import { z } from "zod";
 import { createOrderSchema } from "../types";
 import { generateOrderNumber } from "../utils/orderNumberGenerator";
-import { OrderStatus, PaymentMethod } from "@prisma/client";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { sendOrderConfirmationEmail } from "../services/emailService";
+import { v4 as uuidv4 } from "uuid";
+import { initiateMoMoPayment } from "../services/momo";
 
 export const createOrder: RequestHandler = async (req, res) => {
   try {
@@ -38,25 +40,22 @@ export const createOrder: RequestHandler = async (req, res) => {
         },
       });
 
-      if (!cart || cart.items.length === 0) {
+      if (!cart?.items?.length) {
         throw new Error("Your cart is empty");
       }
 
-      for (const item of cart.items) {
-        if (item.product.stock < item.quantity) {
-          throw new Error(
-            `Insufficient stock for product ${item.product.name}`
-          );
-        }
-      }
-
-      let total: number = 0;
+      const VAT_RATE = 0.18;
+      let subtotal = 0;
       const orderItems = cart.items.map((item) => {
         const price = item.product.discount
           ? Number(item.product.price) * (1 - item.product.discount / 100)
           : Number(item.product.price);
 
-        total += price * item.quantity;
+        if (item.product.stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${item.product.name}`);
+        }
+
+        subtotal += price * item.quantity;
         return {
           productId: item.productId,
           quantity: item.quantity,
@@ -64,72 +63,133 @@ export const createOrder: RequestHandler = async (req, res) => {
         };
       });
 
-      total = parseFloat(total.toFixed(2));
+      const vat = subtotal * VAT_RATE;
+      const total = parseFloat((subtotal + vat).toFixed(2));
 
       const newOrder = await tx.order.create({
         data: {
           userId,
           orderNumber,
-          paymentMethod: paymentMethod as PaymentMethod,
           total,
-          status: OrderStatus.PROCESSING,
+          vat,
+          status:
+            paymentMethod === "COD"
+              ? OrderStatus.AWAITING_CONFIRMATION
+              : OrderStatus.PENDING_PAYMENT,
           shippingAddressId,
-          items: {
-            create: orderItems,
+          items: { create: orderItems },
+          payments: {
+            create: {
+              method: paymentMethod,
+              amount: total,
+              currency: "RWF",
+              status: PaymentStatus.PENDING,
+              reference: uuidv4(),
+            },
           },
         },
         include: {
-          items: {
-            include: { product: true },
-          },
+          items: { include: { product: true } },
           shippingAddress: true,
+          payments: true,
         },
       });
 
-      await Promise.all(
-        cart.items.map((item) =>
-          tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          })
-        )
-      );
+      if (paymentMethod !== "COD") {
+        await Promise.all(
+          cart.items.map((item) =>
+            tx.product.update({
+              where: { id: item.productId },
+              data: { reservedStock: { increment: item.quantity } },
+            })
+          )
+        );
+      } else {
+        await Promise.all(
+          cart.items.map((item) =>
+            tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            })
+          )
+        );
+      }
 
-      await tx.cartItem.deleteMany({
-        where: { cartId: cart.id },
-      });
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
       return newOrder;
     });
 
-    try {
-      if (req.user?.userId) {
-        const userData = await prisma.user.findUnique({
-          where: { id: req.user.userId },
+    if (paymentMethod !== "COD") {
+      try {
+        const payment = order.payments[0];
+        const paymentResult = await initiateMoMoPayment(
+          payment.id,
+          payment.reference,
+          payment.amount,
+          req.body.momoPhone,
+          order.id
+        );
+
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.INITIATED,
+            transactionId: paymentResult.transactionId,
+          },
         });
-        if (userData) {
-          await sendOrderConfirmationEmail(order, userData);
-        }
+
+        order.payments[0].paymentUrl = paymentResult.paymentUrl ?? null;
+      } catch (error) {
+        await prisma.payment.update({
+          where: { id: order.payments[0].id },
+          data: {
+            status: PaymentStatus.FAILED,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Payment initiation failed",
+          },
+        });
+        throw new Error(
+          `Payment initiation failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
       }
-    } catch (error) {
-      console.error("Error sending order confirmation email:", error);
     }
 
-    try {
-      await prisma.notification.create({
-        data: {
-          type: "ORDER",
-          title: "Order Placed",
-          message: `Your order #${order.orderNumber} has been placed successfully`,
-          userId,
-        },
+    if (req.user?.userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.userId },
       });
-    } catch (error) {
-      console.error("Error creating notification:", error);
+      if (user) {
+        const orderWithPaymentMethod = {
+          ...order,
+          paymentMethod: order.payments[0].method,
+        };
+        await sendOrderConfirmationEmail(orderWithPaymentMethod, user);
+      }
     }
+
+    await prisma.notification.create({
+      data: {
+        type: "ORDER",
+        title:
+          paymentMethod === "COD" ? "COD Order Placed" : "Payment Initiated",
+        message:
+          paymentMethod === "COD"
+            ? `Your COD order #${order.orderNumber} is awaiting confirmation`
+            : `Please complete payment for order #${order.orderNumber}`,
+        userId,
+      },
+    });
 
     res.status(201).json({
       success: true,
-      message: "Order placed successfully",
+      message:
+        paymentMethod === "COD"
+          ? "COD order placed successfully"
+          : "Payment initiated successfully",
       data: order,
     });
   } catch (error) {

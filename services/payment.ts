@@ -1,9 +1,8 @@
 import prisma from "../lib/prisma";
 import { generateReference, getErrorMessage } from "../utils/helpers";
 import { PaymentRequest, PaymentMethod, Payment } from "../types/payment";
-import { PaymentStatus } from "@prisma/client";
 import { initiateMoMoPayment, checkMoMoStatus } from "../services/momo";
-import { OrderStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 
 export async function createPayment(
   data: PaymentRequest,

@@ -79,13 +79,15 @@ export const createOrder: RequestHandler = async (req, res) => {
           shippingAddressId,
           items: { create: orderItems },
           payments: {
-            create: {
-              method: paymentMethod,
-              amount: total,
-              currency: "RWF",
-              status: PaymentStatus.PENDING,
-              reference: uuidv4(),
-            },
+            create: [
+              {
+                method: paymentMethod,
+                amount: total,
+                currency: "RWF",
+                status: PaymentStatus.PENDING,
+                reference: uuidv4(),
+              },
+            ],
           },
         },
         include: {
